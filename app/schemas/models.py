@@ -42,6 +42,9 @@ class BotSettingsModel(BaseModel):
     wecom_token: Optional[str] = ""
     wecom_aeskey: Optional[str] = ""
 
+    lark_webhook_url: Optional[str] = ""
+    lark_webhook_secret: Optional[str] = ""
+
 class PushRequestModel(BaseModel):
     user_id: str
     period: str
@@ -107,6 +110,7 @@ class MediaRequestSubmitModel(BaseModel):
     year: str = ""
     poster_path: str = ""
     overview: str = ""
+    note: str = ""
 
 class MediaRequestStatusUpdateModel(BaseModel):
     tmdb_id: int

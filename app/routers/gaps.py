@@ -48,7 +48,7 @@ def process_single_series(series, lock_map, host, tmdb_key, proxies, today, glob
 
     local_inventory = global_inventory.get(series_id, {})
     try:
-        tmdb_series_data = requests.get(f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=zh-CN&api_key={tmdb_key}", proxies=proxies, timeout=10).json()
+        tmdb_series_data = requests.get(f"https://api.tmdb.org/3/tv/{tmdb_id}?language=zh-CN&api_key={tmdb_key}", proxies=proxies, timeout=10).json()
         tmdb_seasons = tmdb_series_data.get("seasons", []); tmdb_status = tmdb_series_data.get("status", "") 
     except: 
         update_progress(series_name)
@@ -60,7 +60,7 @@ def process_single_series(series, lock_map, host, tmdb_key, proxies, today, glob
         if not s_num or season.get("episode_count", 0) == 0: continue
         local_season_inventory = local_inventory.get(s_num, set())
         if len(local_season_inventory) >= season.get("episode_count", 0): continue
-        try: tmdb_episodes = requests.get(f"https://api.themoviedb.org/3/tv/{tmdb_id}/season/{s_num}?language=zh-CN&api_key={tmdb_key}", proxies=proxies, timeout=10).json().get("episodes", [])
+        try: tmdb_episodes = requests.get(f"https://api.tmdb.org/3/tv/{tmdb_id}/season/{s_num}?language=zh-CN&api_key={tmdb_key}", proxies=proxies, timeout=10).json().get("episodes", [])
         except: continue
         for tmdb_ep in tmdb_episodes:
             e_num = tmdb_ep.get("episode_number"); air_date = tmdb_ep.get("air_date")

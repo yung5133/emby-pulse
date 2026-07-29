@@ -213,6 +213,28 @@
             </div>
         </div>
 
+        <div class="apple-card flex flex-col h-full p-5 md:p-6">
+            <h3 class="text-[15px] font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center shrink-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3 shadow-sm"><i class="fa-brands fa-telegram text-sm"></i></div> 
+                飞书 Webhook 推送
+            </h3>
+            <div class="flex-1 flex flex-col justify-start space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider pl-1">Webhook 地址</label>
+                    <input type="text" id="lark_webhook_url" class="w-full px-4 py-3 rounded-xl border border-transparent bg-gray-100 hover:bg-gray-200 dark:bg-[#2C2C2E] dark:hover:bg-[#3A3A3C] text-[13px] font-mono text-gray-800 dark:text-gray-100 focus:bg-white dark:focus:bg-black/30 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder-gray-400" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider pl-1">签名校验 (选填)</label>
+                    <div class="relative">
+                        <input type="password" id="lark_webhook_secret" class="w-full px-4 pr-10 py-3 rounded-xl border border-transparent bg-gray-100 hover:bg-gray-200 dark:bg-[#2C2C2E] dark:hover:bg-[#3A3A3C] text-[13px] font-mono text-gray-800 dark:text-gray-100 focus:bg-white dark:focus:bg-black/30 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all">
+                        <button type="button" onclick="toggleShow('lark_webhook_secret')" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 text-gray-400 hover:text-blue-500 transition-colors flex items-center justify-center">
+                            <i id="icon-lark_webhook_secret" class="fa-solid fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="apple-card flex flex-col h-full lg:col-span-2 2xl:col-span-1 p-5 md:p-6">
             <h3 class="text-[15px] font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center shrink-0">
                 <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#2C2C2E] text-slate-500 flex items-center justify-center mr-3 shadow-sm border border-gray-200/50 dark:border-white/5"><i class="fa-solid fa-terminal text-sm"></i></div> 
@@ -275,6 +297,9 @@
                 document.getElementById('wecom_token').value = d.wecom_token || '';
                 document.getElementById('wecom_aeskey').value = d.wecom_aeskey || '';
 
+                document.getElementById('lark_webhook_url').value = d.lark_webhook_url || '';
+                document.getElementById('lark_webhook_secret').value = d.lark_webhook_secret || '';
+
                 // Switches
                 document.getElementById('enable_bot').checked = d.enable_bot || false;
                 document.getElementById('enable_notify').checked = d.enable_notify || false;
@@ -323,6 +348,8 @@
             wecom_proxy_url: document.getElementById('wecom_proxy_url').value || 'https://qyapi.weixin.qq.com',
             wecom_token: document.getElementById('wecom_token').value,
             wecom_aeskey: document.getElementById('wecom_aeskey').value,
+            lark_webhook_url: document.getElementById('lark_webhook_url').value,
+            lark_webhook_secret: document.getElementById('lark_webhook_secret').value,
             enable_bot: document.getElementById('enable_bot').checked,
             enable_notify: document.getElementById('enable_notify').checked,
             enable_library_notify: document.getElementById('enable_library_notify').checked
