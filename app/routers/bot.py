@@ -40,6 +40,9 @@ def api_save_bot_settings(data: BotSettingsModel, request: Request):
     cfg.set("wecom_token", data.wecom_token)
     cfg.set("wecom_aeskey", data.wecom_aeskey)
     
+    cfg.set("lark_webhook_url", data.lark_webhook_url or "")
+    cfg.set("lark_webhook_secret", data.lark_webhook_secret or "")
+    
     bot.stop()
     if data.enable_bot: threading.Timer(1.0, bot.start).start()
     return {"status": "success", "message": "配置已保存"}

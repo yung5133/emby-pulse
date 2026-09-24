@@ -288,7 +288,7 @@ class CalendarService:
 
         try:
             # 1. 抓取剧集基本信息，提取剧集总简介 (series_overview) 用于前端兜底
-            url_series = f"https://api.themoviedb.org/3/tv/{tmdb_id}?api_key={api_key}&language=zh-CN"
+            url_series = f"https://api.tmdb.org/3/tv/{tmdb_id}?api_key={api_key}&language=zh-CN"
             res_series = requests.get(url_series, timeout=5, proxies=proxies)
             if res_series.status_code != 200: return []
             
@@ -309,7 +309,7 @@ class CalendarService:
             # 3. 遍历目标季，筛选出本周更新的单集
             for season_num in target_seasons:
                 if season_num is None: continue
-                url_season = f"https://api.themoviedb.org/3/tv/{tmdb_id}/season/{season_num}?api_key={api_key}&language=zh-CN"
+                url_season = f"https://api.tmdb.org/3/tv/{tmdb_id}/season/{season_num}?api_key={api_key}&language=zh-CN"
                 res_season = requests.get(url_season, timeout=5, proxies=proxies)
                 if res_season.status_code != 200: continue
                 

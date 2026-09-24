@@ -51,6 +51,8 @@ DEFAULT_CONFIG = {
     "enable_library_notify": False,
     "notify_user_login": False,   
     "notify_item_deleted": False, 
+    "lark_webhook_url": "",
+    "lark_webhook_secret": "",
     "webhook_token": "embypulse",
     "calendar_cache_ttl": 86400,
     "scheduled_tasks": [],

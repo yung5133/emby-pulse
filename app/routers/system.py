@@ -74,7 +74,7 @@ def api_test_tmdb(request: Request):
     if not tmdb_key: return {"status": "error", "message": "未配置 TMDB API Key"}
     try:
         proxies = {"http": proxy, "https": proxy} if proxy else None
-        url = f"https://api.themoviedb.org/3/authentication/token/new?api_key={tmdb_key}"
+        url = f"https://api.tmdb.org/3/authentication/token/new?api_key={tmdb_key}"
         res = requests.get(url, proxies=proxies, timeout=10)
         if res.status_code == 200: return {"status": "success", "message": "TMDB 连接成功"}
         return {"status": "error", "message": f"连接失败: {res.status_code}"}

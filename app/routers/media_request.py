@@ -34,6 +34,12 @@ def ensure_db_schema():
             c.execute("INSERT OR IGNORE INTO media_requests (tmdb_id, media_type, title, year, poster_path, status, 0, reject_reason, created_at) SELECT tmdb_id, media_type, title, year, poster_path, status, 0, reject_reason, created_at FROM media_requests_old")
             c.execute("DROP TABLE media_requests_old")
 
+    c.execute("PRAGMA table_info(media_requests)")
+    note_cols = [col[1] for col in c.fetchall()]
+    if 'note' not in note_cols:
+        try: c.execute("ALTER TABLE media_requests ADD COLUMN note TEXT DEFAULT ''")
+        except: pass
+
     c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='request_users'")
     u_sql = c.fetchone()
     if u_sql:
@@ -258,7 +264,7 @@ def search_tmdb(query: str, request: Request):
     if not request.session.get("req_user"): return {"status": "error", "message": "未登录"}
     tmdb_key = cfg.get("tmdb_api_key"); proxy = cfg.get("proxy_url"); proxies = {"https": proxy} if proxy else None
     try:
-        res = requests.get(f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&language=zh-CN&query={query}", proxies=proxies, timeout=10).json()
+        res = requests.get(f"https://api.tmdb.org/3/search/multi?api_key={tmdb_key}&language=zh-CN&query={query}", proxies=proxies, timeout=10).json()
         results = []
         for i in res.get("results", []):
             if i.get("media_type") in ["movie", "tv"]:
@@ -274,7 +280,7 @@ def get_tmdb_trending(request: Request):
     try:
         results = []
         for page in [1, 2]:
-            res = requests.get(f"https://api.themoviedb.org/3/trending/all/week?api_key={tmdb_key}&language=zh-CN&page={page}", proxies=proxies, timeout=10).json()
+            res = requests.get(f"https://api.tmdb.org/3/trending/all/week?api_key={tmdb_key}&language=zh-CN&page={page}", proxies=proxies, timeout=10).json()
             for i in res.get("results", []):
                 if i.get("media_type") in ["movie", "tv"] and i.get("poster_path"):
                     results.append({
@@ -310,7 +316,7 @@ def get_tv_details(tmdb_id: int):
                     if sn is not None:
                         local_seasons_map[sn] = local_seasons_map.get(sn, 0) + 1
 
-        tmdb_res = requests.get(f"https://api.themoviedb.org/3/tv/{tmdb_id}?api_key={tmdb_key}&language=zh-CN", proxies=proxies, timeout=10).json()
+        tmdb_res = requests.get(f"https://api.tmdb.org/3/tv/{tmdb_id}?api_key={tmdb_key}&language=zh-CN", proxies=proxies, timeout=10).json()
         seasons = []
         for s in tmdb_res.get("seasons", []):
             if s["season_number"] > 0: 
@@ -347,6 +353,7 @@ async def submit_media_request(request: Request):
         title = data.get("title")
         year = data.get("year")
         poster_path = data.get("poster_path")
+        note = (data.get("note") or "").strip()
 
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -383,8 +390,8 @@ async def submit_media_request(request: Request):
             c.execute("INSERT INTO point_logs (user_id, username, action, amount, balance) VALUES (?, ?, ?, ?, ?)",
                       (uid, uname, f"提交求片心愿: {title}", -req_cost, new_points))
 
-        c.execute("INSERT OR IGNORE INTO media_requests (tmdb_id, media_type, title, year, poster_path, status, season) VALUES (?, ?, ?, ?, ?, 0, ?)",
-                  (tmdb_id, media_type, title, year, poster_path, season))
+        c.execute("INSERT OR IGNORE INTO media_requests (tmdb_id, media_type, title, year, poster_path, status, season, note) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+                  (tmdb_id, media_type, title, year, poster_path, season, note))
                   
         c.execute("INSERT OR IGNORE INTO request_users (tmdb_id, user_id, username, season) VALUES (?, ?, ?, ?)",
                   (tmdb_id, uid, uname, season))
@@ -395,7 +402,8 @@ async def submit_media_request(request: Request):
         try:
             add_sys_notification("request", f"收到新求片: {title}", f"用户 {uname} 提交了新的心愿单", "/requests_admin")
             season_str = f" 第 {season} 季" if media_type == "tv" else ""
-            msg = f"🎬 <b>收到新求片心愿</b>\n\n👤 <b>用户：</b>{uname}\n📺 <b>内容：</b>{title} ({year}){season_str}\n\n请及时前往后台审批处理。"
+            note_str = f"\n📝 <b>备注：</b>{note}" if note else ""
+            msg = f"🎬 <b>收到新求片心愿</b>\n\n👤 <b>用户：</b>{uname}\n📺 <b>内容：</b>{title} ({year}){season_str}{note_str}\n\n请及时前往后台审批处理。"
             
             admin_url = cfg.get("pulse_url") or cfg.get_main_public_url() or "http://127.0.0.1:10307"
             keyboard = {"inline_keyboard": [
@@ -417,28 +425,28 @@ def get_my_requests(request: Request):
     if not user: return {"status": "error", "message": "未登录"}
     uid = str(user.get("Id", ""))
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-    query = "SELECT m.tmdb_id, m.title, m.year, m.poster_path, m.status, m.season, m.media_type, r.requested_at, m.reject_reason FROM request_users r JOIN media_requests m ON r.tmdb_id = m.tmdb_id AND r.season = m.season WHERE r.user_id = ? ORDER BY r.requested_at DESC"
+    query = "SELECT m.tmdb_id, m.title, m.year, m.poster_path, m.status, m.season, m.media_type, r.requested_at, m.reject_reason, m.note FROM request_users r JOIN media_requests m ON r.tmdb_id = m.tmdb_id AND r.season = m.season WHERE r.user_id = ? ORDER BY r.requested_at DESC"
     c.execute(query, (uid,))
     rows = c.fetchall()
     conn.close()
     
     results = []
     for r in rows:
-        results.append({"tmdb_id": r[0], "title": r[1] + (f" (S{r[5]})" if r[6]=='tv' else ""), "year": r[2], "poster_path": r[3], "status": r[4], "season": r[5], "requested_at": r[7], "reject_reason": r[8]})
+        results.append({"tmdb_id": r[0], "title": r[1] + (f" (S{r[5]})" if r[6]=='tv' else ""), "year": r[2], "poster_path": r[3], "status": r[4], "season": r[5], "requested_at": r[7], "reject_reason": r[8], "note": r[9] or ""})
     return {"status": "success", "data": results}
 
 @router.get("/api/manage/requests")
 def get_all_requests(request: Request):
     if not request.session.get("user"): return {"status": "error", "message": "无权访问"}
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-    query = "SELECT m.tmdb_id, m.media_type, m.title, m.year, m.poster_path, m.status, m.season, m.created_at, COUNT(r.user_id) as cnt, GROUP_CONCAT(COALESCE(r.username, '系统用户'), ', ') as users, m.reject_reason FROM media_requests m LEFT JOIN request_users r ON m.tmdb_id = r.tmdb_id AND m.season = r.season GROUP BY m.tmdb_id, m.season ORDER BY m.status ASC, m.created_at DESC"
+    query = "SELECT m.tmdb_id, m.media_type, m.title, m.year, m.poster_path, m.status, m.season, m.created_at, COUNT(r.user_id) as cnt, GROUP_CONCAT(COALESCE(r.username, '系统用户'), ', ') as users, m.reject_reason, m.note FROM media_requests m LEFT JOIN request_users r ON m.tmdb_id = r.tmdb_id AND m.season = r.season GROUP BY m.tmdb_id, m.season ORDER BY m.status ASC, m.created_at DESC"
     c.execute(query)
     rows = c.fetchall()
     conn.close()
     
     results = []
     for r in rows:
-        results.append({"tmdb_id": r[0], "media_type": r[1], "title": r[2] + (f" 第 {r[6]} 季" if r[1]=='tv' else ""), "year": r[3], "poster_path": r[4], "status": r[5], "season": r[6], "created_at": r[7], "request_count": r[8], "requested_by": r[9], "reject_reason": r[10]})
+        results.append({"tmdb_id": r[0], "media_type": r[1], "title": r[2] + (f" 第 {r[6]} 季" if r[1]=='tv' else ""), "year": r[3], "poster_path": r[4], "status": r[5], "season": r[6], "created_at": r[7], "request_count": r[8], "requested_by": r[9], "reject_reason": r[10], "note": r[11] or ""})
     return {"status": "success", "data": results}
 
 @router.post("/api/manage/requests/batch")

@@ -10,6 +10,8 @@ import re
 import ipaddress
 import sqlite3
 import urllib3
+import hashlib
+import base64
 from collections import defaultdict
 from app.core.config import cfg, REPORT_COVER_URL, FALLBACK_IMAGE_URL
 from app.core.database import query_db, get_base_filter, add_sys_notification, DB_PATH
@@ -322,7 +324,7 @@ class NotificationBot:
 
     def start(self):
         if self.running: return
-        if not cfg.get("tg_bot_token") and not cfg.get("wecom_corpid"): return
+        if not cfg.get("tg_bot_token") and not cfg.get("wecom_corpid") and not cfg.get("lark_webhook_url"): return
         self.running = True
         self._set_commands()
         self._set_wecom_menu() 
@@ -691,7 +693,7 @@ class NotificationBot:
                 if tmdb_id and tmdb_key:
                     try:
                         m_type = "movie" if raw_type == "Movie" else "tv"
-                        req_url = f"https://api.themoviedb.org/3/{m_type}/{tmdb_id}?api_key={tmdb_key}"
+                        req_url = f"https://api.tmdb.org/3/{m_type}/{tmdb_id}?api_key={tmdb_key}"
                         tmdb_res = requests.get(req_url, proxies=self._get_proxies(), timeout=5)
                         if tmdb_res.status_code == 200:
                             p_path = tmdb_res.json().get("poster_path")
@@ -963,6 +965,41 @@ class NotificationBot:
             if res.status_code != 200 or res.json().get("errcode", 0) != 0: self._send_wecom_message(html_text, inline_keyboard, touser)
         except: self._send_wecom_message(html_text, inline_keyboard, touser)
 
+    def _html_to_lark_text(self, html_text):
+        text = re.sub(r'<br\s*/?>', '\n', html_text)
+        text = re.sub(r'<b>(.*?)</b>', r'**\1**', text)
+        text = re.sub(r'<i>(.*?)</i>', r'*\1*', text)
+        text = re.sub(r'<code>(.*?)</code>', r'`\1`', text)
+        text = re.sub(r'<a href="(.*?)">(.*?)</a>', r'[\2](\1)', text)
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'&amp;', '&', text)
+        text = re.sub(r'&lt;', '<', text)
+        text = re.sub(r'&gt;', '>', text)
+        if len(text.encode('utf-8')) > 30720:
+            text = text.encode('utf-8')[:30717].decode('utf-8', 'ignore') + '...'
+        return text
+
+    def _lark_sign(self):
+        lark_secret = cfg.get("lark_webhook_secret", "")
+        if not lark_secret: return {}
+        ts = str(int(time.time()))
+        sign_str = f"{ts}\n{lark_secret}"
+        sign = hashlib.sha256(sign_str.encode()).digest()
+        sign_b64 = base64.b64encode(sign).decode()
+        return {"timestamp": ts, "sign": sign_b64}
+
+    def _send_lark_message(self, text, inline_keyboard=None, chat_id=None):
+        webhook_url = cfg.get("lark_webhook_url", "")
+        if not webhook_url: return
+        try:
+            payload = {"msg_type": "text", "content": {"text": self._html_to_lark_text(text)}}
+            payload.update(self._lark_sign())
+            requests.post(webhook_url, json=payload, timeout=10)
+        except: pass
+
+    def _send_lark_photo(self, photo_bytes, text, inline_keyboard=None, chat_id=None):
+        self._send_lark_message(text, inline_keyboard)
+
     def send_photo(self, chat_id, photo_io, caption, parse_mode="HTML", reply_markup=None, platform="all", wecom_photo_io=None):
         photo_bytes = None
         if isinstance(photo_io, str):
@@ -984,6 +1021,9 @@ class NotificationBot:
         if platform in ["all", "wecom"] and cfg.get("wecom_corpid"):
             threading.Thread(target=self._send_wecom_photo, args=(wecom_photo_bytes, caption, reply_markup, chat_id if platform == "wecom" else cfg.get("wecom_touser", "@all"))).start()
 
+        if platform in ["all", "lark"] and cfg.get("lark_webhook_url"):
+            threading.Thread(target=self._send_lark_photo, args=(photo_bytes, caption, reply_markup, chat_id if platform == "lark" else None)).start()
+
         if platform in ["all", "tg"] and cfg.get("tg_bot_token"):
             raw_cids = str(cfg.get("tg_chat_id", ""))
             tg_cids = [chat_id] if platform == "tg" else [c.strip() for c in raw_cids.replace('，', ',').split(',') if c.strip()]
@@ -1003,6 +1043,9 @@ class NotificationBot:
     def send_message(self, chat_id, text, parse_mode="HTML", reply_markup=None, platform="all"):
         if platform in ["all", "wecom"] and cfg.get("wecom_corpid"):
             threading.Thread(target=self._send_wecom_message, args=(text, reply_markup, chat_id if platform == "wecom" else cfg.get("wecom_touser", "@all"))).start()
+
+        if platform in ["all", "lark"] and cfg.get("lark_webhook_url"):
+            threading.Thread(target=self._send_lark_message, args=(text, reply_markup, chat_id if platform == "lark" else None)).start()
 
         if platform in ["all", "tg"] and cfg.get("tg_bot_token"):
             raw_cids = str(cfg.get("tg_chat_id", ""))

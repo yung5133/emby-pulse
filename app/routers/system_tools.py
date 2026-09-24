@@ -94,7 +94,7 @@ async def network_check():
     tg_ok, tg_ping = ping_url("https://api.telegram.org", proxies)
     
     tmdb_key = cfg.get("tmdb_api_key", "")
-    tmdb_url = f"https://api.themoviedb.org/3/configuration?api_key={tmdb_key}" if tmdb_key else "https://api.themoviedb.org/3/"
+    tmdb_url = f"https://api.tmdb.org/3/configuration?api_key={tmdb_key}" if tmdb_key else "https://api.tmdb.org/3/"
     tmdb_ok, tmdb_ping = ping_url(tmdb_url, proxies)
     
     last_webhook = "暂无记录"

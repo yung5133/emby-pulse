@@ -141,7 +141,7 @@ def proxy_smart_image(item_id: str, name: str = "", year: str = "", type: str = 
             proxy = cfg.get("proxy_url")
             proxies = {"https": proxy, "http": proxy} if proxy else None
             
-            tmdb_url = f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&language=zh-CN&query={urllib.parse.quote(clean_name)}"
+            tmdb_url = f"https://api.tmdb.org/3/search/multi?api_key={tmdb_key}&language=zh-CN&query={urllib.parse.quote(clean_name)}"
             t_resp = ext_session.get(tmdb_url, proxies=proxies, timeout=5)
             
             if t_resp.status_code == 200:
@@ -149,7 +149,7 @@ def proxy_smart_image(item_id: str, name: str = "", year: str = "", type: str = 
                 for res in results:
                     if res.get("media_type") == "tv" and season_num is not None and img_type.lower() == 'primary':
                         tv_id = res.get("id")
-                        season_url = f"https://api.themoviedb.org/3/tv/{tv_id}/season/{season_num}?api_key={tmdb_key}&language=zh-CN"
+                        season_url = f"https://api.tmdb.org/3/tv/{tv_id}/season/{season_num}?api_key={tmdb_key}&language=zh-CN"
                         s_resp = ext_session.get(season_url, proxies=proxies, timeout=5)
                         if s_resp.status_code == 200:
                             s_data = s_resp.json()
